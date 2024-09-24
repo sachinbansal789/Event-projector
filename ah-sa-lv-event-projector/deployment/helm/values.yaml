@@ -1,0 +1,155 @@
+# Default values for document-retrieval-service.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: docker.allianzuk.cloud/azuk/ah/sa-ah-sa-lv-event-projector
+  tag:  1.0.0
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: nexus-docker-secret
+nameOverride: "ah-sa-lv-event-projector"
+fullnameOverride: "ah-sa-lv-event-projector"
+
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "ah-sa-lv-event-projector"
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: NodePort
+  port: 8080
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 384Mi
+  requests:
+    cpu: 50m
+    memory: 192Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+deploymentStrategy: RollingUpdate
+
+rollingUpdate:
+  maxSurge: 25%
+  maxUnavailable: 25%
+
+deploymentPorts:
+  - name: http
+    containerPort: 8080
+    protocol: TCP
+  - name: http-metrics
+    containerPort: 9080
+    protocol: TCP
+
+livenessProbe:
+  failureThreshold: 5
+  periodSeconds: 30
+  timeoutSeconds: 10
+  initialDelaySeconds: 150
+  httpGet:
+    path: /__health
+    port: http
+
+readinessProbe:
+  failureThreshold: 5
+  periodSeconds: 30
+  timeoutSeconds: 10
+  initialDelaySeconds: 150
+  httpGet:
+    path: /__health
+    port: http
+
+containerEnv:
+  - name: JAVA_TOOL_OPTIONS
+    value: '-XX:MaxRAMPercentage=85.0'
+  - name: NAMESPACE
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.namespace
+  - name: spring_profiles_active
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.namespace
+  - name: mq_host
+    valueFrom:
+      configMapKeyRef:
+        name: ah-sa
+        key: mq_host
+  - name: mq_port
+    valueFrom:
+      configMapKeyRef:
+        name: ah-sa
+        key: mq_port
+  - name: mq_vhost
+    valueFrom:
+      configMapKeyRef:
+        name: ah-sa
+        key: mq_vhost
+  - name: mq_username
+    valueFrom:
+      secretKeyRef:
+        name: rabbitmq
+        key: username
+  - name: mq_password
+    valueFrom:
+      secretKeyRef:
+        name: rabbitmq
+        key: password
+  - name: ah_rabbit_encryption_secret
+    valueFrom:
+      secretKeyRef:
+        name: event-processor-secret
+        key: KEYSPEC_SECRET
+  - name: ah_rabbit_encryption_salt
+    valueFrom:
+      secretKeyRef:
+        name: event-processor-secret
+        key: KEYSPEC_SALT
+  - name: oauth_service_host
+    valueFrom:
+      configMapKeyRef:
+        name: ah-sa-lv-event-projector
+        key: OAUTH_SERVICE_HOST
+  - name: dev_app_client_id
+    valueFrom:
+      configMapKeyRef:
+        name: ah-sa-lv-event-projector
+        key: DEV_APP_CLIENT_ID
+  - name: dev_app_client_secret
+    valueFrom:
+      secretKeyRef:
+        name: ah-sa-lv-event-projector-secret
+        key: dev_app_client_secret
+  - name: ingress_url
+    valueFrom:
+      configMapKeyRef:
+        name: ah-sa-lv-event-projector
+        key: INGRESS_URL

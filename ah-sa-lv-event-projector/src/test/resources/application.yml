@@ -1,0 +1,80 @@
+server:
+  port: 8080
+
+ingress:
+  url: ${ingress_url:https://dev-uk-apis.svc.azuk-scc-ci.ec1.aws.aztec.cloud.allianz/azuk/ds/eventreceiver/v1/coreeventreceiver/eventsink/push}
+
+ah:
+  encryption:
+    enabled: true
+    secret: ${ah_rabbit_encryption_secret:341411412412}
+    salt: ${ah_rabbit_encryption_salt:5675685687567856}
+  oauth:
+    token:
+      active: true
+      service:
+        host:  ${oauth_service_host:https://dev-uk-apis.svc.azuk-scc-ci.ec1.aws.aztec.cloud.allianz/azuk/ds/uam/identity/oauthv2/v1/token}
+        clientId: ${dev_app_client_id:TlX5fHugE7bIoalRmNzqJUBbGBle0HIw}
+        clientSecret: ${dev_app_client_secret:mXeGdQIEIjIKtOAF}
+        print: ${oauth_print_token:Y}
+  selfhealing:
+    enabled: ${selfhealing_enabled:true}
+
+camel:
+  component:
+    rabbitmq:
+      hostname: ${mq_host:localhost}
+      port-number: ${mq_port:5672}
+      username: ${mq_username:guest}
+      password: ${mq_password:guest}
+      vhost: ${mq_vhost:/camel.vhost}
+      automatic-recovery-enabled: true
+      thread-pool-size: 15
+      prefetch-enabled: true
+      prefetch-count: 30
+  scheme: rabbitmq
+  event:
+    listener: ah.sa.dx?routingKey=ah.sa.lv.event.rk&queue=ah-sa-lv-event-projector-mq&arg.queue.x-queue-type=quorum&arg.queue.auto_delete=false&autoDelete=false&autoAck=false
+    deadLetter: deadLetterExchange=ah.sa.dlx&deadLetterRoutingKey=ah.sa.lv.event.dlq.rk&deadLetterQueue=ah-sa-lv-event-projector-dlq&arg.dlq.queue.x-queue-type=quorum&arg.dlq.auto_delete=false
+    healListener: ah.sa.dlx?routingKey=ah.sa.lv.event.dlq.rk&queue=ah-sa-lv-event-projector-dlq&skipQueueDeclare=true&autoDelete=false
+    target: ah.sa.dx?routingKey=ah.sa.lv.event.rk&queue=ah-sa-lv-event-projector-mq&skipQueueDeclare=true&autoDelete=false
+    noHealListener: ah.sa.dx?routingKey=ah.sa.lv.event.noheal.rk&queue=ah-sa-lv-event-projector-noheal-mq&arg.queue.x-queue-type=quorum&arg.queue.auto_delete=false&autoDelete=false&autoAck=true
+    retryListener: ah.sa.dx?routingKey=ah.sa.lv.event.retry.rk&queue=ah-sa-lv-event-projector-mq&arg.queue.x-queue-type=quorum&arg.queue.auto_delete=false&autoDelete=false&autoAck=false
+  audit:
+    endpoint: ah.sa.dx?routingKey=ah.sa.audit.rk&skipQueueDeclare=true&autoDelete=false
+    enabled: false
+
+health:
+  cache:
+    http:
+      timeout: 60
+    checks: # Internal cache timeout and size
+      timeToLive: 120
+      size: 3
+  system:
+    code: ah-sa-lv-event-projector
+    description: AH Small Animals LV Event Projector Service for sending events to On Premise Systems
+    name: AH SA LV Event Projector Service
+    tier: Gold
+    environment: local
+
+management:
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: '*'
+    jmx:
+      exposure:
+        include: '*'
+  metrics:
+    export:
+      prometheus:
+        enabled: true

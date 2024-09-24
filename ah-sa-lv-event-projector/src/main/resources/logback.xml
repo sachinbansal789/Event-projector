@@ -1,0 +1,42 @@
+<configuration>
+
+    <if condition='property("LOG_FORMAT").contains("json")'>
+        <then>
+            <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                    <includeMdcKeyName>x-session-id-for-tracing</includeMdcKeyName>
+                    <includeMdcKeyName>x-correlation-id</includeMdcKeyName>
+                    <includeMdcKeyName>x-application-source</includeMdcKeyName>
+                    <includeMdcKeyName>x-application-source-details</includeMdcKeyName>
+                    <includeMdcKeyName>x-event-type</includeMdcKeyName>
+                    <includeMdcKeyName>eventType</includeMdcKeyName>
+                    <includeMdcKeyName>transactionId</includeMdcKeyName>
+                    <includeMdcKeyName>reference_number</includeMdcKeyName>
+                    <fieldNames>
+                        <!-- Do not output the standard message field.  It will be output by the pattern provider below -->
+                        <message>[ignore]</message>
+                    </fieldNames>
+                    <!-- Output the message field with new line, return and tabs replaced -->
+                    <provider class="net.logstash.logback.composite.loggingevent.LoggingEventPatternJsonProvider">
+                        <pattern>
+                            {
+                            "message": "%replace(%msg){'(\\n|\\r|\\t)',' '}"
+                            }
+                        </pattern>
+                    </provider>
+                </encoder>
+            </appender>
+        </then>
+        <else>
+            <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} sessionId=%X{x-session-id-for-tracing} correlationId=%X{x-correlation-id} applicationSource=%X{x-application-source} applicationSourceDetails=%X{x-application-source-details} x-event-type=%X{x-event-type} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+        </else>
+    </if>
+
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

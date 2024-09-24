@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>uk.co.allianz.ah</groupId>
+    <artifactId>ah-sa-lv-event-projector</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <description>AH Petplan Small Animals Event Projector Service for sending events to On Premise Systems</description>
+
+    <parent>
+        <groupId>uk.co.allianz.ah</groupId>
+        <artifactId>ah-parent</artifactId>
+        <version>1.1.4</version>
+    </parent>
+
+    <properties>
+        <java.version>11</java.version>
+        <ah-json-dom.version>1.0.0</ah-json-dom.version>
+        <lombok.version>1.18.24</lombok.version>
+        <ah-security.version>1.0.0</ah-security.version>
+        <camel.version>3.14.0</camel.version>
+        <!-- Test libraries -->
+        <wiremock.version>2.27.2</wiremock.version>
+        <ah-messaging.version>1.0.8</ah-messaging.version>
+        <ah-encryption-util.version>1.0.0</ah-encryption-util.version>
+    </properties>
+
+    <dependencies>
+        <!-- Allianz : start -->
+        <dependency>
+            <groupId>uk.co.allianz.ah</groupId>
+            <artifactId>ah-json-dom</artifactId>
+            <version>${ah-json-dom.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>uk.co.allianz.ah</groupId>
+            <artifactId>ah-messaging</artifactId>
+            <version>${ah-messaging.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>uk.co.allianz.ah</groupId>
+            <artifactId>ah-encryption-util</artifactId>
+            <version>${ah-encryption-util.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>uk.co.allianz.ah</groupId>
+            <artifactId>ah-security</artifactId>
+            <version>${ah-security.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <!-- Allianz : end -->
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-rabbitmq</artifactId>
+            <version>${camel.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel.springboot</groupId>
+            <artifactId>camel-rabbitmq-starter</artifactId>
+            <version>${camel.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-quartz</artifactId>
+            <version>${camel.version}</version>
+        </dependency>
+
+        <!-- Test dependencies: start -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-runner</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>${wiremock.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Test dependencies: end -->
+
+    </dependencies>
+
+    <build>
+        <finalName>service</finalName>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+            </plugin>
+            <!-- <plugin>
+                 <groupId>org.owasp</groupId>
+                 <artifactId>dependency-check-maven</artifactId>
+                 <version>7.4.4</version>
+                 <executions>
+                     <execution>
+                         <goals>
+                             <goal>check</goal>
+                         </goals>
+                     </execution>
+                 </executions>
+             </plugin>-->
+        </plugins>
+
+    </build>
+
+    <distributionManagement>
+        <repository>
+            <id>nexus</id>
+            <url>https://nexus.allianzuk.cloud/repository/ah-smallanimal-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexus</id>
+            <url>https://nexus.allianzuk.cloud/repository/ah-smallanimal-snapshot/</url>
+        </snapshotRepository>
+    </distributionManagement>
+    <repositories>
+        <repository>
+            <id>nexus</id>
+            <name>AWS Repo</name>
+            <url>https://nexus.allianzuk.cloud/repository/maven-group/</url>
+        </repository>
+    </repositories>
+</project>

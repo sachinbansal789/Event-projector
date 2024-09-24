@@ -1,0 +1,25 @@
+replicaCount: 1
+configmap:
+  data:
+    PRINT_TOKEN: "Y"
+    SPRING_PROFILE: ah-sa-ci
+    OAUTH_SERVICE_HOST: https://dev-uk-apis.svc.azuk-scc-ci.ec1.aws.aztec.cloud.allianz/azuk/ds/uam/identity/oauthv2/v1/token
+    DEV_APP_CLIENT_ID: AAARagptpJkZJPL1q9v5Wx56hipmhGDm
+    INGRESS_URL: https://dev-uk-apis.svc.azuk-scc-ci.ec1.aws.aztec.cloud.allianz/azuk/ds/eventreceiver/v1/coreeventreceiver/eventsink/push
+
+#Add a readiness gate with conditionType:
+#target-health.alb.ingress.k8s.aws/<ingress name>_<service name>_<service port> to your pod.
+#This is required if the target type in ALB ingress is ip
+readinessGates:
+  enabled: false
+  conditions:
+    - conditionType: target-health.alb.ingress.k8s.aws/ah-sa_ah-sa-lv-event-projector_8080
+    - conditionType: target-health.alb.ingress.k8s.aws/ah-sa-ext_ah-sa-lv-event-projector_8080
+
+pod:
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 50
+    targetMemoryUtilizationPercentage: 80

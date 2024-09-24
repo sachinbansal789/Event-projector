@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+node('slave-maven-ah') {
+
+    properties([
+            disableConcurrentBuilds(),
+            parameters([
+              gitParameter(
+                    branch: '',
+                    branchFilter: '.*',
+                    defaultValue: 'master',
+                    description: '',
+                    listSize: '10',
+                    name: 'TAG',
+                    quickFilterEnabled: false,
+                    selectedValue: 'TOP',
+                    sortMode: 'DESCENDING_SMART',
+                    tagFilter: 'DEV-*',
+                    type: 'PT_TAG')])
+    ])
+
+    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD']]) {
+
+        stage('Checkout') {
+             checkout([$class                           : 'GitSCM',
+                              branches                         : [[name: "${params.TAG}"]],
+                              doGenerateSubmoduleConfigurations: false,
+                              extensions                       : [],
+                              gitTool                          : 'Default',
+                              submoduleCfg                     : [],
+                              userRemoteConfigs                : scm.userRemoteConfigs
+             ])
+        }
+
+        stage('Environment') {
+            env.TEAM_NAME="ah"
+            env.SUB_TEAM_NAME='sa'
+
+            POM = readMavenPom file: 'pom.xml'
+            env.SERVICE_NAME = POM.artifactId
+             if (env.TAG_NAME == null) {
+                 env.TAG_NAME = params.TAG
+             }
+            env.EMG_SERVICE_NAME='azukp-ah-sa-lv-event-projector-emg'
+            env.HELM_CHART_NAME = 'azukp-ah-sa-lv-event-projector-emg'
+            env.HELM_PATH = './deployment/helmEmg'
+            env.HELM_DEPLOY_TIMEOUT = '20'
+
+            print "job name :" + env.JOB_NAME
+            print "Tag number selected as params:" + params.TAG
+            print "Service name is : $SERVICE_NAME"
+            print "EMG Service name is : $EMG_SERVICE_NAME"
+            print "Tag number is:" + env.TAG_NAME
+            print "Build number:" + env.BUILD_NUMBER
+
+            def DEV_VER = env.TAG_NAME
+            env.TAG_NUM = DEV_VER.drop(DEV_VER.indexOf('-')+1)
+            print "Service Docker Image version from Nexus :" + TAG_NUM
+            env.THIS_VERSION = "INT-${TAG_NUM}"
+            print "INT code version will be: ${THIS_VERSION}  :: "+  env.THIS_VERSION
+
+        }
+
+      if (isReleaseBuild()) {
+
+          stage('Build') {
+              print "Building version: ${env.THIS_VERSION}"
+              sh 'mvn versions:set -DnewVersion=' + env.THIS_VERSION + '  -Dnexus.username=${NEXUS_USERNAME} -Dnexus.password=${NEXUS_PASSWORD}'
+              sh 'mvn clean deploy -Dnexus.username=${NEXUS_USERNAME} -Dnexus.password=${NEXUS_PASSWORD}'
+              junit testResults: '**/target/*-reports/TEST-*.xml'
+              recordIssues(
+               enabledForFailure: true, aggregatingResults: true,
+               tools: [java(), checkStyle(pattern: 'target/checkstyle-result.xml', reportEncoding: 'UTF-8')]
+              )
+          }
+
+          stage('Publish Docker') {
+              sh "docker login ${env.NEXUS_DOCKER_REGISTRY} -u ${NEXUS_USERNAME} -p ${NEXUS_PASSWORD}"
+              DOCKER_PATH="${env.NEXUS_DOCKER_REGISTRY}/${env.DOCKER_REGISTRY_PATH_PREFIX}/${env.TEAM_NAME}/${env.SUB_TEAM_NAME}-${env.SERVICE_NAME}:${env.TAG_NUM}"
+              sh "docker build -t ${DOCKER_PATH} ."
+              sh "docker push ${DOCKER_PATH}"
+          }
+
+          stage('Deploy EMG') {
+              deployEMG()
+              print "Tagged : Deployment complete"
+          }
+
+          stage('Tag') {
+
+              print "Start tagging"
+
+              try {
+                  withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'gitlab-credentials', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD']]) {
+                      sh("git config credential.username ${env.GIT_USERNAME}")
+                      sh("git config credential.helper '!f() { echo password=\$GIT_PASSWORD; }; f'")
+                      sh("git config --global user.email jenkins@ppch.com")
+                      sh("git config --global user.name JenkinsAgentInt")
+                      sh("git tag -a ${env.THIS_VERSION} -m 'By Jenkins from development tag ${env.TAG_NAME}'")
+                      sh("GIT_ASKPASS=true git push origin --tags")
+                  }
+              } catch (Exception ex) {
+                  print "GIT TAG EXCEPTION Raised: Seems like deployment was already done in past and Git INT Tag already exist !!!"
+              } finally {
+                  try {
+                      sh("git config --unset credential.username")
+                      sh("git config --unset credential.helper")
+                  } catch (Exception ex) {
+                      print "Error unsetting"
+                  }
+              }
+
+              print "INT Tagging done"
+          }
+
+
+      } else  {
+          print "Not a release build - skipping, No Docker deployment done!"
+      }
+
+    }
+}
+
+private boolean isReleaseBuild() {
+    env.TAG_NAME != "master"
+}
+
+private void deployEMG() {
+    def helmChartVersion = sh(returnStdout: true, script: "helm show chart ${env.HELM_PATH} | grep version: | cut -f2 -d':' | tr -d ' \n'")
+    sh "helm repo add ${env.HELM_HOSTED_REPO} ${HELM_HOSTED_REPO_URL} --username ${NEXUS_USERNAME} --password ${NEXUS_PASSWORD}"
+    def helmChartStatus = sh(returnStatus: true, script: "helm search repo ${env.HELM_CHART_NAME} --version ${helmChartVersion} | grep ${helmChartVersion}")
+    if (helmChartStatus != 0) {
+        sh "helm package ${env.HELM_PATH}"
+        sh "helm nexus-push ${env.HELM_HOSTED_REPO} ${env.HELM_CHART_NAME}-${helmChartVersion}.tgz --username ${NEXUS_USERNAME} --password ${NEXUS_PASSWORD}"
+        sleep 5 //Sleeping for 5 seconds before updating repo
+        sh "helm repo update"
+    }
+    sh "aws eks update-kubeconfig --name ${EKS_CLUSTER_NAME}"
+    timeout(time: env.HELM_DEPLOY_TIMEOUT, unit: 'MINUTES') {git gitfeature
+        sh "helm upgrade --install ${env.EMG_SERVICE_NAME} ${env.HELM_HOSTED_REPO}/${env.HELM_CHART_NAME} --set appService.image.tag=${env.TAG_NUM} \
+        -f ${env.HELM_PATH}/values_${env.ENVIRONMENT}.yaml --version ${helmChartVersion} --atomic --timeout ${env.HELM_DEPLOY_TIMEOUT}m --namespace=${env.TEAM_NAME}-${env.SUB_TEAM_NAME}-${env.ENVIRONMENT}"
+        print "Tagged: EMG Deployment complete"
+    }
+}

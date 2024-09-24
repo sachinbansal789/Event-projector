@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+
+node('slave-maven-ah') {
+
+    properties([
+                disableConcurrentBuilds()
+        ])
+
+
+    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD']]) {
+
+    stage('Environment') {
+            env.HELM_CHART_NAME='ah-sa-lv-event-projector'
+            env.HELM_EMG_CHART_NAME='azukp-ah-sa-lv-event-projector-emg'
+            env.EMG_SERVICE_NAME='azukp-ah-sa-lv-event-projector-emg'
+            env.TEAM_NAME='ah'
+            env.SUB_TEAM_NAME='sa'
+            env.HELM_PATH='./deployment/helm'
+            env.HELM_PATH_EMG='./deployment/helmEmg'
+            env.HELM_DEPLOY_TIMEOUT='20m'
+            print "THIS_ENV :" + env.ENVIRONMENT
+            print "HELM_CHART_NAME :" + env.HELM_CHART_NAME
+            print "HELM_EMG_CHART_NAME :" + env.HELM_EMG_CHART_NAME
+            print "job name :" + env.JOB_NAME
+            print "Build number:" + env.BUILD_NUMBER
+            print "Tag number is:" + env.TAG_NAME
+        }
+
+        stage('Checkout') {
+            checkout scm
+        }
+
+        stage('Version') {
+            POM = readMavenPom file: 'pom.xml'
+            env.SERVICE_NAME = POM.artifactId
+            print "Service name :" + env.SERVICE_NAME
+            print "EMG Service name :" + env.EMG_SERVICE_NAME
+
+            String COMMIT_ID = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
+            env.VERSION_TO_BUILD = "${POM.version}-${COMMIT_ID}"
+            print "Docker Tag version: ${env.VERSION_TO_BUILD}"
+        }
+
+        stage('Build') {
+
+            if (isMasterBuild()) {
+                sh 'mvn clean deploy -Pdocs -Dnexus.username=${NEXUS_USERNAME} -Dnexus.password=${NEXUS_PASSWORD}'
+            } else {
+                sh 'mvn clean deploy -Dnexus.username=${NEXUS_USERNAME} -Dnexus.password=${NEXUS_PASSWORD}'
+            }
+            junit allowEmptyResults: true, testResults: '**/target/*-reports/TEST-*.xml'
+            recordIssues(
+                    enabledForFailure: true, aggregatingResults: true,
+                    tools: [java(), checkStyle(pattern: 'target/checkstyle-result.xml', reportEncoding: 'UTF-8')]
+            )
+        }
+
+        if (isMasterBuild()) {
+
+            stage('Scan OWASP Dependencies') {
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'nvd-db-user', usernameVariable: 'NVD_DB_USERNAME', passwordVariable: 'NVD_DB_PASSWORD']]) {
+                    dependencycheck additionalArguments: "--noupdate  --disableAssembly --disableRetireJS --connectionString jdbc:postgresql://nvd-rds.ci.allianzuk.cloud:5432/dependencycheck --dbPassword ${env.NVD_DB_PASSWORD} --dbUser ${env.NVD_DB_USERNAME} --dbDriverName org.postgresql.Driver --dbDriverPath ${env.POSTGRES_DRIVER_PATH} --scan ./target/*.jar", odcInstallation: 'slave'
+                }
+                print " Publishing OWASP results"
+                dependencyCheckPublisher pattern: 'dependency-check-report.xml'
+            }
+
+            stage('Publish Docker') {
+                sh "docker login ${env.NEXUS_DOCKER_REGISTRY} -u ${NEXUS_USERNAME} -p ${NEXUS_PASSWORD}"
+                DOCKER_PATH="${env.NEXUS_DOCKER_REGISTRY}/${env.DOCKER_REGISTRY_PATH_PREFIX}/${env.TEAM_NAME}/${env.SUB_TEAM_NAME}-${env.SERVICE_NAME}:${env.VERSION_TO_BUILD}"
+                sh "docker build -t ${DOCKER_PATH} ."
+                sh "docker push ${DOCKER_PATH}"
+            }
+
+            stage('Anchore Scan') {
+                sh "echo ${env.NEXUS_DOCKER_REGISTRY}/${env.DOCKER_REGISTRY_PATH_PREFIX}/${env.TEAM_NAME}/${env.SUB_TEAM_NAME}-${env.SERVICE_NAME}:${env.VERSION_TO_BUILD} > anchore_images"
+                anchore bailOnFail: false, bailOnPluginFail: false, name: 'anchore_images'
+            }
+
+            stage("Deploy") {
+                deployMicroService()
+            }
+
+            stage("Deploy EMG") {
+                deployEMG()
+            }
+
+            stage('Execute Functional tests') {
+                print "Initiating functional tests.."
+                sh "docker run -e KARATE_ENV=${env.ENVIRONMENT} --rm -v /var/jenkins/workspace/ah-sa-lv-api-functional-tests_master/target/karate-reports:/usr/src/app/target/karate-reports ${env.NEXUS_DOCKER_REGISTRY}/${env.DOCKER_REGISTRY_PATH_PREFIX}/${env.TEAM_NAME}/${env.TEAM_PRODUCT}/sa-ah-sa-lv-api-functional-tests:latest"
+                print "Functional tests execution completed.."
+            }
+
+         stage('Generate Cucumber Report') {
+                cucumber buildStatus: 'UNSTABLE',
+                reportTitle: 'AH Karate Functional Tests Report',
+                fileIncludePattern: '**/*.json',
+                jsonReportDirectory: '/var/jenkins/workspace/ah-sa-lv-api-functional-tests_master/target/karate-reports'
+                print "Cucumber report generated.."
+            }
+        }
+    }
+
+}
+
+
+private boolean isMasterBuild() {
+    env.BRANCH_NAME == "master" && env.TAG_NAME == null
+}
+
+private void deployMicroService() {
+    def helmChartVersion = sh(returnStdout: true, script: "helm show chart ${env.HELM_PATH} | grep version: | cut -f2 -d':' | tr -d ' \n'")
+    sh "helm repo add ${env.HELM_HOSTED_REPO} ${HELM_HOSTED_REPO_URL} --username ${NEXUS_USERNAME} --password ${NEXUS_PASSWORD}"
+    def helmChartStatus = sh(returnStatus: true, script: "helm search repo -r '^${env.HELM_CHART_NAME}' --version ${helmChartVersion} | grep ${helmChartVersion}")
+    if (helmChartStatus != 0) {
+        sh "helm package ${env.HELM_PATH}"
+        sh "helm nexus-push ${env.HELM_HOSTED_REPO} ${env.HELM_CHART_NAME}-${helmChartVersion}.tgz --username ${NEXUS_USERNAME} --password ${NEXUS_PASSWORD}"
+        sleep 5 //Sleeping for 5 seconds before updating repo
+        sh "helm repo update"
+    }
+    sh "aws eks update-kubeconfig --name ${EKS_CLUSTER_NAME}"
+    sh "kubectl config set-context --current --namespace=${env.TEAM_NAME}-${env.SUB_TEAM_NAME}-${env.ENVIRONMENT}"
+    timeout(time: 20, unit: 'MINUTES') {
+           sh "helm upgrade --install ${env.SERVICE_NAME} ${env.HELM_HOSTED_REPO}/${env.HELM_CHART_NAME} --set image.tag=${env.VERSION_TO_BUILD} \
+        -f ${env.HELM_PATH}/values_${env.ENVIRONMENT}.yaml --version ${helmChartVersion} --atomic --timeout ${env.HELM_DEPLOY_TIMEOUT}"
+        print "Deployment complete"
+    }
+}
+
+private void deployEMG() {
+    def helmChartVersion = sh(returnStdout: true, script: "helm show chart ${env.HELM_PATH_EMG} | grep version: | cut -f2 -d':' | tr -d ' \n'")
+    sh "helm repo add ${env.HELM_HOSTED_REPO} ${HELM_HOSTED_REPO_URL} --username ${NEXUS_USERNAME} --password ${NEXUS_PASSWORD}"
+    def helmChartStatus = sh(returnStatus: true, script: "helm search repo ${env.HELM_EMG_CHART_NAME} --version ${helmChartVersion} | grep ${helmChartVersion}")
+    if (helmChartStatus != 0) {
+        sh "helm package ${env.HELM_PATH_EMG}"
+        sh "helm nexus-push ${env.HELM_HOSTED_REPO} ${env.HELM_EMG_CHART_NAME}-${helmChartVersion}.tgz --username ${NEXUS_USERNAME} --password ${NEXUS_PASSWORD}"
+        sleep 5 //Sleeping for 5 seconds before updating repo
+        sh "helm repo update"
+    }
+    sh "aws eks update-kubeconfig --name ${EKS_CLUSTER_NAME}"
+    timeout(time: 20, unit: 'MINUTES') {
+        sh "helm upgrade --install ${env.EMG_SERVICE_NAME} ${env.HELM_HOSTED_REPO}/${env.HELM_EMG_CHART_NAME} --set appService.image.tag=${env.VERSION_TO_BUILD} \
+        -f ${env.HELM_PATH_EMG}/values_${env.ENVIRONMENT}.yaml --version ${helmChartVersion} --atomic --timeout ${env.HELM_DEPLOY_TIMEOUT} --namespace=${env.TEAM_NAME}-${env.SUB_TEAM_NAME}-${env.ENVIRONMENT}"
+        print "EMG Deployment complete"
+    }
+}

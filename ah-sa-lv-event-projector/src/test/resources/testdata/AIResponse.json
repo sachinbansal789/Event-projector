@@ -1,0 +1,53 @@
+{
+  "event_control" : {
+    "event_type" : "AI_RESPONSE",
+    "event_sub_type" : "CREATED",
+    "transaction_source" : "LVSTP",
+    "transaction_id" : "23110303",
+    "transaction_effective_date" : "02-Nov-2023 17:05:26"
+  },
+  "event_details" : {
+    "ai_response" : {
+      "brand_type" : "22",
+      "brand_owner" : "7",
+      "line_of_business" : "1",
+      "json_message" : {
+        "control" : {
+          "responseTimestamp" : "2023-11-03T00:00:00",
+          "claimNumber" : 8033225,
+          "targetMLModel" : "PETPLAN_STP_P0"
+        },
+        "modelResponse" : {
+          "messageDetails" : {
+            "timeStamp" : "2023-11-02T17:05:26.778604+00:00",
+            "callUUID" : "0aebe018-38b7-45aa-a519-c8968c8c2ed1",
+            "uniqueIdentifier" : 1108
+          },
+          "uniqueIdentifier" : 1108,
+          "timeStamp" : "03/NOV/2023 00:00:00",
+          "claimNumber" : 8033225,
+          "conditionCode" : "SKZ",
+          "invoiceItems" : [ {
+            "invoiceItemID" : 2153,
+            "itemDescription" : "dermovate for dogs 10mg",
+            "amountIncVAT" : 120,
+            "payable" : true,
+            "notCoveredCode" : ""
+          }, {
+            "invoiceItemID" : 2155,
+            "itemDescription" : "antiitch ointment 50mg",
+            "amountIncVAT" : 60,
+            "payable" : true,
+            "notCoveredCode" : ""
+          }, {
+            "invoiceItemID" : 2154,
+            "itemDescription" : "hosp day level 1 outpatient",
+            "amountIncVAT" : 60,
+            "payable" : true,
+            "notCoveredCode" : ""
+          } ]
+        }
+      }
+    }
+  }
+}

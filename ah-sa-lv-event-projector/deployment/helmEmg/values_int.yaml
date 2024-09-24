@@ -1,0 +1,86 @@
+replicaCount: 1
+
+configmap:
+  data:
+    PRINT_TOKEN: "Y"
+    SPRING_PROFILE: ah-sa-int
+    OAUTH_SERVICE_HOST: https://int-uk-apis.svc.azuk-scc-int.ec1.aws.aztec.cloud.allianz/azuk/ds/uam/identity/oauthv2/v1/token
+    DEV_APP_CLIENT_ID: Il3GcgUK9RUSz5xfQAratMq0rdiPPjZt
+    INGRESS_URL: https://uat-uk-apis.svc.azuk-scc-int.ec1.aws.aztec.cloud.allianz/azuk/ds/eventreceiver/v1/coreeventreceiver/eventsink/push # Enable to push messages to (www-syseventtransfer.allianz.co.uk)
+    #INGRESS_URL: https://int-uk-apis.svc.azuk-scc-int.ec1.aws.aztec.cloud.allianz/azuk/ds/eventreceiver/v1/coreeventreceiver/eventsink/push # Enable to push messages to (www-uateventtransfer.allianz.co.uk)
+
+appService:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 384Mi
+    requests:
+      cpu: 50m
+      memory: 192Mi
+
+  image:
+    # Overrides the image tag whose default is the chart version.
+    tag: 1.0.0
+
+
+sidecar:
+  resources:
+    limits:
+      cpu: 50m
+      memory: 256Mi
+    requests:
+      cpu: 25m
+      memory: 192Mi
+
+  containerEnv:
+    - name: JAVA_TOOL_OPTIONS
+      value: '-XX:MaxRAMPercentage=85.0'
+    - name: EDGEMICRO_CONFIG
+      value: ZWRnZV9jb25maWc6CiAgYm9vdHN0cmFwOiA+LQogICAgaHR0cHM6Ly91YXQtdWstYXBpcy5zdmMuYXp1ay1zY2MtaW50LmVjMS5hd3MuYXp0ZWMuY2xvdWQuYWxsaWFuei9lZGdlbWljcm8vYm9vdHN0cmFwL29yZ2FuaXphdGlvbi91ay9lbnZpcm9ubWVudC91YXQKICBqd3RfcHVibGljX2tleTogJ2h0dHBzOi8vdWF0LXVrLWFwaXMuc3ZjLmF6dWstc2NjLWludC5lYzEuYXdzLmF6dGVjLmNsb3VkLmFsbGlhbnovZWRnZW1pY3JvLWF1dGgvcHVibGljS2V5JwogIG1hbmFnZW1lbnRVcmk6ICdodHRwczovL3ByZS1lZGdlLWFwaXMuc3ZjLmF6dWstc2NjLWludC5lYzEuYXdzLmF6dGVjLmNsb3VkLmFsbGlhbnonCiAgdmF1bHROYW1lOiBtaWNyb2dhdGV3YXkKICBhdXRoVXJpOiAnaHR0cHM6Ly91YXQtdWstYXBpcy5zdmMuYXp1ay1zY2MtaW50LmVjMS5hd3MuYXp0ZWMuY2xvdWQuYWxsaWFuei9lZGdlbWljcm8tYXV0aCcKICBiYXNlVXJpOiAnaHR0cHM6Ly91YXQtdWstYXBpcy5zdmMuYXp1ay1zY2MtaW50LmVjMS5hd3MuYXp0ZWMuY2xvdWQuYWxsaWFuei9lZGdlbWljcm8vJXMvb3JnYW5pemF0aW9uLyVzL2Vudmlyb25tZW50LyVzJwogIGJvb3RzdHJhcE1lc3NhZ2U6IFBsZWFzZSBjb3B5IHRoZSBmb2xsb3dpbmcgcHJvcGVydHkgdG8gdGhlIGVkZ2UgbWljcm8gYWdlbnQgY29uZmlnCiAga2V5U2VjcmV0TWVzc2FnZTogVGhlIGZvbGxvd2luZyBjcmVkZW50aWFscyBhcmUgcmVxdWlyZWQgdG8gc3RhcnQgZWRnZSBtaWNybwogIHByb2R1Y3RzOiAnaHR0cHM6Ly91YXQtdWstYXBpcy5zdmMuYXp1ay1zY2MtaW50LmVjMS5hd3MuYXp0ZWMuY2xvdWQuYWxsaWFuei9lZGdlbWljcm8tYXV0aC9wcm9kdWN0cycKZWRnZW1pY3JvOgogIHBvcnQ6IDgwMDAKICBwcm94eToKICAgIHR1bm5lbDogZmFsc2UKICAgICMgICAgdXJsOiAnaHR0cDovL3Byb3h5LmF6dWstc2NjLWludC5lYzEuYXdzLmF6dGVjLmNsb3VkLmFsbGlhbno6ODg4OCcKICAgIGVuYWJsZWQ6IGZhbHNlCiAgbWF4X2Nvbm5lY3Rpb25zOiAxMDAwCiAgIyAgY29uZmlnX2NoYW5nZV9wb2xsX2ludGVydmFsOiAzNjAwCiAgZGlzYWJsZV9jb25maWdfcG9sbF9pbnRlcnZhbDogdHJ1ZQogIGxvZ2dpbmc6CiAgICBsZXZlbDogaW5mbwogICAgZGlyOiAvdmFyL3RtcAogICAgc3RhdHNfbG9nX2ludGVydmFsOiA2MAogICAgcm90YXRlX2ludGVydmFsOiAyNAogIHBsdWdpbnM6CiAgICBzZXF1ZW5jZToKICAgICAgLSBoZWFsdGhjaGVjawogICAgICAtIHNlcnZpY2VjaGVjawogICAgICAtIG9hdXRoCiAgICAgIC0gc2NvcGVzY2hlY2sKaGVhZGVyczoKICB4LWZvcndhcmRlZC1mb3I6IHRydWUKICB4LWZvcndhcmRlZC1ob3N0OiB0cnVlCiAgeC1yZXF1ZXN0LWlkOiB0cnVlCiAgeC1yZXNwb25zZS10aW1lOiB0cnVlCiAgdmlhOiB0cnVlCmhlYWx0aGNoZWNrOgogIGhlYWx0aGNoZWNrX3VybDogL2hlYWx0aApzZXJ2aWNlY2hlY2s6CiAgc2VydmljZWNoZWNrX3VybDogL19faGVhbHRoCiAgc2VydmljZWNoZWNrX3BvcnQ6IDgwODAKb2F1dGg6CiAgYWxsb3dOb0F1dGhvcml6YXRpb246IGZhbHNlCiAgYWxsb3dJbnZhbGlkQXV0aG9yaXphdGlvbjogZmFsc2UKICBhbGxvd09BdXRoT25seTogdHJ1ZQogIGFsbG93QVBJS2V5T25seTogZmFsc2UKICBrZWVwLWF1dGhvcml6YXRpb24taGVhZGVyOiB0cnVlCiAgZ3JhY2VQZXJpb2Q6IDEwCiAgdmVyaWZ5X2FwaV9rZXlfdXJsOiAnaHR0cHM6Ly91YXQtdWstYXBpcy5zdmMuYXp1ay1zY2MtaW50LmVjMS5hd3MuYXp0ZWMuY2xvdWQuYWxsaWFuei9lZGdlbWljcm8tYXV0aC92ZXJpZnlBcGlLZXknCiAgY2FjaGVLZXk6IHRydWUKc2NvcGVzY2hlY2s6CiAgc2NvcGVzY2hlY2tfbGlzdDogIlBPU1Q9dXJuOmF6dWs6cGVyc29uYWw6YW5pbWFsaGVhbHRoOnNhOmx2OmNsb3VkOmV2ZW50LXByb2plY3RvciIKYW5hbHl0aWNzOgogIHVyaTogPi0KICAgIGh0dHBzOi8vdWF0LXVrLWFwaXMuc3ZjLmF6dWstc2NjLWludC5lYzEuYXdzLmF6dGVjLmNsb3VkLmFsbGlhbnovZWRnZW1pY3JvL2F4cHVibGlzaGVyL29yZ2FuaXphdGlvbi91ay9lbnZpcm9ubWVudC91YXQKICBidWZmZXJTaXplOiAxMDAwMAogIGJhdGNoU2l6ZTogMjAwMAogIGZsdXNoSW50ZXJ2YWw6IDM2MDAwMDAKICByZWxhdGl2ZVBhdGg6IC9fX2hlYWx0aA==
+    - name: EDGEMICRO_ORG
+      value: uk
+    - name: EDGEMICRO_ENV
+      value: uat
+    - name: EDGEMICRO_KEY
+      valueFrom:
+        secretKeyRef:
+          name: apigee-secret
+          key: EDGEMICRO_KEY
+    - name: EDGEMICRO_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: apigee-secret
+          key: EDGEMICRO_SECRET
+    - name: EDGEMICRO_PROCESSES
+      value: "2"
+    - name: SERVICE_NAME
+      value: ah-sa-lv-event-projector
+    - name: PROXY_NAME
+      value: edgemicro_ah-sa-lv-event-projector
+    - name: CONTAINER_PORT
+      value: "8080"
+    - name: EDGEMICRO_BASE_PATH
+      value: /
+    - name: EDGEMICRO_LOCAL_PROXY
+      value: "1"
+    - name: NODE_EXTRA_CA_CERTS
+      value: /opt/apigee/certs/ca-certificates.crt
+    - name: EDGEMICRO_PLUGIN_DIR
+      value: /usr/local/lib/node_modules/edgemicro/plugins/
+
+
+#Add a readiness gate with conditionType:
+#target-health.alb.ingress.k8s.aws/<ingress name>_<service name>_<service port> to your pod.
+#This is required if the target type in ALB ingress is ip
+readinessGates:
+  enabled: true
+  conditions:
+    - conditionType: target-health.alb.ingress.k8s.aws/ah-sa_azukp-ah-sa-lv-event-projector-emg_8000
+    - conditionType: target-health.alb.ingress.k8s.aws/ah-sa-ext_azukp-ah-sa-lv-event-projector-emg_8000
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 150
+  targetMemoryUtilizationPercentage: 150

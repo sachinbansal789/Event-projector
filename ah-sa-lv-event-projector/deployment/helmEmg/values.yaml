@@ -1,0 +1,218 @@
+# Default values for policy-service-name-emg-sidecar.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+podAntiAffinity:
+  enabled: true
+
+appService:
+  name: ah-sa-lv-event-projector
+  image:
+    # Overrides the docker name 
+    repository: docker.allianzuk.cloud/azuk/ah/sa-ah-sa-lv-event-projector
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart version.
+    tag: 1.0.0
+
+  securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000 
+    
+  deploymentPorts:
+    - name: http
+      containerPort: 8080
+      protocol: TCP
+    - name: http-metrics
+      containerPort: 9080
+      protocol: TCP
+
+  livenessProbe:
+    failureThreshold: 5
+    periodSeconds: 30
+    timeoutSeconds: 10
+    initialDelaySeconds: 150
+    httpGet:
+      path: /__health
+      port: http
+
+  readinessProbe:
+    failureThreshold: 5
+    periodSeconds: 30
+    timeoutSeconds: 10
+    initialDelaySeconds: 150
+    httpGet:
+      path: /__health
+      port: http
+
+  containerEnv:
+    - name: JAVA_TOOL_OPTIONS
+      value: '-XX:MaxRAMPercentage=85.0'
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.namespace
+    - name: spring_profiles_active
+      valueFrom:
+        configMapKeyRef:
+          name: azukp-ah-sa-lv-event-projector-emg
+          key: SPRING_PROFILE
+    - name: mq_host
+      valueFrom:
+        configMapKeyRef:
+          name: ah-sa
+          key: mq_host
+    - name: mq_port
+      valueFrom:
+        configMapKeyRef:
+          name: ah-sa
+          key: mq_port
+    - name: mq_vhost
+      valueFrom:
+        configMapKeyRef:
+          name: ah-sa
+          key: mq_vhost
+    - name: mq_username
+      valueFrom:
+        secretKeyRef:
+          name: rabbitmq
+          key: username
+    - name: mq_password
+      valueFrom:
+        secretKeyRef:
+          name: rabbitmq
+          key: password
+    - name: ah_rabbit_encryption_secret
+      valueFrom:
+        secretKeyRef:
+          name: event-processor-secret
+          key: KEYSPEC_SECRET
+    - name: ah_rabbit_encryption_salt
+      valueFrom:
+        secretKeyRef:
+          name: event-processor-secret
+          key: KEYSPEC_SALT
+    - name: oauth_service_host
+      valueFrom:
+        configMapKeyRef:
+          name: azukp-ah-sa-lv-event-projector-emg
+          key: OAUTH_SERVICE_HOST
+    - name: dev_app_client_id
+      valueFrom:
+        configMapKeyRef:
+          name: azukp-ah-sa-lv-event-projector-emg
+          key: DEV_APP_CLIENT_ID
+    - name: dev_app_client_secret
+      valueFrom:
+        secretKeyRef:
+          name: ah-sa-lv-event-projector-secret
+          key: dev_app_client_secret
+    - name: ingress_url
+      valueFrom:
+        configMapKeyRef:
+          name: azukp-ah-sa-lv-event-projector-emg
+          key: INGRESS_URL
+
+sidecar:
+  name: ae-emg-sidecar-container
+
+  image:
+    repository: docker.allianzuk.cloud/azuk/apigee/ae-emg-sidecar
+    pullPolicy: IfNotPresent
+    tag: 1.0.32
+
+  securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000  
+  
+  deploymentPorts:
+    - name: http-8000
+      containerPort: 8000
+      protocol: TCP
+       
+
+  livenessProbe:
+    failureThreshold: 5
+    periodSeconds: 30
+    timeoutSeconds: 10
+    initialDelaySeconds: 150
+    httpGet:
+      path: /health
+      port: http-8000
+
+  readinessProbe:
+    failureThreshold: 5
+    periodSeconds: 30
+    timeoutSeconds: 10
+    initialDelaySeconds: 150
+    httpGet:
+      path: /health
+      port: http-8000
+
+  volumeMounts:
+    - mountPath: /opt/apigee/logs
+      name: ae-emg-sidecar-container-1-volume-1
+    - mountPath: /opt/apigee/plugins
+      name: ae-emg-sidecar-container-1-volume-2
+    - mountPath: /opt/apigee/.edgemicro
+      name: ae-emg-sidecar-container-1-volume-3
+
+volumes:
+  - emptyDir: {}
+    name: ae-emg-sidecar-container-1-volume-1
+  - emptyDir: {}
+    name: ae-emg-sidecar-container-1-volume-2
+  - emptyDir: {}
+    name: ae-emg-sidecar-container-1-volume-3
+
+imagePullSecrets:
+  - name: nexus-docker-secret 
+nameOverride: "azukp-ah-sa-lv-event-projector-emg"
+fullnameOverride: "azukp-ah-sa-lv-event-projector-emg"
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "azukp-ah-sa-lv-event-projector-emg"
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+service:
+  type: NodePort
+  port: 8000
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+  
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+deploymentStrategy: RollingUpdate
+
+rollingUpdate:
+  maxSurge: 25%
+  maxUnavailable: 25%

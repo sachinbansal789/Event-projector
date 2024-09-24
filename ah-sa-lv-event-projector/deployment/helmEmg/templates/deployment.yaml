@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "service-name-emg-sidecar.fullname" . }}
+  labels:
+    {{- include "service-name-emg-sidecar.labels" . | nindent 4 }}
+spec:
+{{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      {{- include "service-name-emg-sidecar.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "service-name-emg-sidecar.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "service-name-emg-sidecar.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.readinessGates.enabled }}
+      readinessGates:
+        {{- range .Values.readinessGates.conditions }}
+        - conditionType: {{ .conditionType | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values: 
+                  - {{ include "service-name-emg-sidecar.fullname" . }}
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+      {{- end }}
+      containers:
+        - name: {{ .Values.appService.name }}
+          env:
+          {{- toYaml .Values.appService.containerEnv | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.appService.securityContext | nindent 12 }}
+          image: "{{ .Values.appService.image.repository }}:{{ .Values.appService.image.tag }}"
+          imagePullPolicy: {{ .Values.appService.image.pullPolicy }}
+          ports:
+            {{- toYaml .Values.appService.deploymentPorts | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.appService.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.appService.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.appService.resources | nindent 12 }}
+        - name: {{ .Values.sidecar.name }}
+          env:
+          {{- toYaml .Values.sidecar.containerEnv | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.sidecar.securityContext | nindent 12 }}
+          image: "{{ .Values.sidecar.image.repository }}:{{ .Values.sidecar.image.tag }}"
+          imagePullPolicy: {{ .Values.sidecar.image.pullPolicy }}
+          ports:
+            {{- toYaml .Values.sidecar.deploymentPorts | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.sidecar.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.sidecar.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.sidecar.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.sidecar.volumeMounts | nindent 12 }}
+      volumes:
+        {{- toYaml .Values.volumes | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

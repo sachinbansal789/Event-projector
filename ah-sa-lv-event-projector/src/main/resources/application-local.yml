@@ -1,0 +1,17 @@
+ah:
+  encryption:
+    enabled: false
+
+camel:
+  component:
+    rabbitmq:
+      hostname: ${mq_host:localhost}
+      port-number: ${mq_port:9081}
+      username: ${mq_username:guest}
+      password: ${mq_password:guest}
+      vhost: ${mq_vhost:/camel.vhost}
+      automatic-recovery-enabled: true
+      thread-pool-size: 15
+      prefetch-enabled: true
+      prefetch-count: 30
+  scheme: rabbitmq

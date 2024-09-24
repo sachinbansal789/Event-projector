@@ -1,0 +1,61 @@
+edge_config:
+  bootstrap: >-
+    https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro/bootstrap/organization/uk/environment/internal
+  jwt_public_key: 'https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro-auth/publicKey'
+  managementUri: 'https://edge-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz'
+  vaultName: microgateway
+  authUri: 'https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro-auth'
+  baseUri: 'https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro/%s/organization/%s/environment/%s'
+  bootstrapMessage: Please copy the following property to the edge micro agent config
+  keySecretMessage: The following credentials are required to start edge micro
+  products: 'https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro-auth/products'
+edgemicro:
+  port: 8000
+  proxy:
+    tunnel: false
+    url:
+    enabled: false
+  max_connections: 1000
+  #config_change_poll_interval: 3600
+  disable_config_poll_interval: true
+  logging:
+    level: info
+    dir: /var/tmp
+    stats_log_interval: 60
+    rotate_interval: 24
+  plugins:
+    sequence:
+      - healthcheck
+      - servicecheck
+      - oauth
+      - scopescheck
+
+headers:
+  x-forwarded-for: true
+  x-forwarded-host: true
+  x-request-id: true
+  x-response-time: true
+  via: true
+healthcheck:
+  healthcheck_url: /health
+servicecheck:
+  servicecheck_url: /__health
+  servicecheck_port: 8080
+oauth:
+  allowNoAuthorization: false
+  allowInvalidAuthorization: false
+  allowOAuthOnly: true
+  allowAPIKeyOnly: false
+  keep-authorization-header: true
+  gracePeriod: 10
+  verify_api_key_url: 'https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro-auth/verifyApiKey'
+  cacheKey: true
+scopescheck:
+  scopescheck_list: "POST=urn:azuk:personal:animalhealth:sa:lv:cloud:event-projector"
+analytics:
+  uri: >-
+    https://pro-uk-apis.svc.azuk-scc-prod.ew3.aws.aztec.cloud.allianz/edgemicro/axpublisher/organization/uk/environment/internal
+  bufferSize: 10000
+  batchSize: 2000
+  flushInterval: 3600000
+  relativePath: /__health
